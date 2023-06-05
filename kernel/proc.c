@@ -149,6 +149,7 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->trace = 0; 
   p->state = UNUSED;
 }
 
@@ -280,6 +281,9 @@ fork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
+  // copy the trace mask 
+  np->trace = p->trace;
+
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
@@ -384,6 +388,7 @@ exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
+  p->trace = 0;
 
   release(&original_parent->lock);
 
@@ -692,4 +697,12 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+void            
+trace(int mask) {
+  struct proc* p = myproc();
+  acquire(&p->lock);
+  p->trace = mask; 
+  release(&p->lock);
 }
