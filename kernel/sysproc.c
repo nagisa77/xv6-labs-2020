@@ -97,7 +97,7 @@ sys_uptime(void)
 }
 
 uint64
-sys_trace() {
+sys_trace(void) {
   int n;
 
   if(argint(0, &n) < 0) {
@@ -106,4 +106,14 @@ sys_trace() {
   trace(n); 
 
   return 0; 
+}
+
+uint64
+sys_sysinfo(void) {
+  uint64 addr; // user pointer to struct stat
+
+  if(argaddr(0, &addr) < 0) {
+    return -1;
+  }
+  return sysinfo(addr);
 }

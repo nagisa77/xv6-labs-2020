@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sysinfo.h"
 
 struct cpu cpus[NCPU];
 
@@ -705,4 +706,27 @@ trace(int mask) {
   acquire(&p->lock);
   p->trace = mask; 
   release(&p->lock);
+}
+
+int             
+sysinfo(uint64 addr) {
+  struct sysinfo info; 
+  struct proc *p = myproc();
+  info.freemem = freemem();
+  info.nproc = nproc();
+  if(copyout(p->pagetable, addr, (char *)&info, sizeof(info)) < 0) {
+    return -1;
+  }
+  return 0; 
+}
+
+uint64 
+nproc() {
+  uint64 proc_nums = 0; 
+  for (int i = 0; i < NPROC; ++i) {
+    if (proc[i].state != UNUSED) {
+      ++proc_nums; 
+    }
+  }
+  return proc_nums; 
 }
