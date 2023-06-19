@@ -71,20 +71,36 @@ kvminithart()
 pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
+  // 不能翻译大于maxva的地址
   if(va >= MAXVA)
     panic("walk");
 
+  // 总共跳跃三次
   for(int level = 2; level > 0; level--) {
+    // 因为 pagetable_t 已经被声明为 uint64* 
+    // 因此每偏移一位, 就是8字节, 刚好1个PTE
+    // 通过PX算出需要偏移多少
+    // va偏移level*9位, 截断9位算出一个数, 就是偏移
+    // 
+    // #define PX(level, va) ((((uint64) (va)) >> PXSHIFT(level)) & PXMASK)
+    // 
     pte_t *pte = &pagetable[PX(level, va)];
     if(*pte & PTE_V) {
+      // 如果这个PTE的V位为1, 就说明「这个物理地址指向的是一个页表」
+      // 那就是直接跳PPN
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
+      // 如果没想要申请新的页表, 或者没有空余的物理内存, 那就到此为止
       if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
         return 0;
+      // 不然就申请新的页表, 把整个页表4096字节都刷为0
       memset(pagetable, 0, PGSIZE);
+      // 然后指向页表的PTE, 需要写上该页表的地址, 并且V位写为1
       *pte = PA2PTE(pagetable) | PTE_V;
     }
   }
+
+  // 最后返回指向物理内存的PTE
   return &pagetable[PX(0, va)];
 }
 
