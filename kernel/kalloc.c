@@ -54,10 +54,14 @@ kfree(void *pa)
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
+  // pa是指向一个页表的地址
+  // 因此r指向这个页表
   r = (struct run*)pa;
 
   acquire(&kmem.lock);
+  // 在『这个页表的首8字节』, 写下next的地址
   r->next = kmem.freelist;
+  // freelist指向这个页表
   kmem.freelist = r;
   release(&kmem.lock);
 }
