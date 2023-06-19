@@ -53,6 +53,7 @@ void
 kvminithart()
 {
   w_satp(MAKE_SATP(kernel_pagetable));
+  // 刷新TLB缓存, 防止拿到脏数据
   sfence_vma();
 }
 
@@ -251,13 +252,17 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     return oldsz;
 
   oldsz = PGROUNDUP(oldsz);
+  // 分成若干份页表大小的数据
   for(a = oldsz; a < newsz; a += PGSIZE){
+    // 每一份分别申请一张物理页面
     mem = kalloc();
     if(mem == 0){
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
+    // 如果申请成功. 整个页面设置内存为0
     memset(mem, 0, PGSIZE);
+    // 将该片用户内存的起始位置映射到刚刚申请的物理页面上
     if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
       kfree(mem);
       uvmdealloc(pagetable, a, oldsz);
@@ -265,6 +270,34 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     }
   }
   return newsz;
+}
+
+void vmprint_inner(pagetable_t pagetable, int deep) {
+  if (deep > 2) {
+    return; 
+  }
+
+  for (int i = 0; i < 512; ++i) {
+    pte_t pte = pagetable[i];
+    // valid
+    if (pte & PTE_V) {
+      pagetable_t child = (pagetable_t)PTE2PA(pte);
+      if (deep == 0) {
+        printf(".."); 
+      } else if (deep == 1) {
+        printf(".. .."); 
+      } else if (deep == 2) {
+        printf(".. .. .."); 
+      }
+      printf("%d: pte %p pa %p\n", i, pte, child); 
+      vmprint_inner(child, deep + 1); 
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable) {
+  printf("page table %p\n", pagetable); 
+  vmprint_inner(pagetable, 0); 
 }
 
 // Deallocate user pages to bring the process size from oldsz to
