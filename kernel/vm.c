@@ -336,7 +336,10 @@ freewalk(pagetable_t pagetable)
 void freewalk_kernel_pagetable(pagetable_t pagetable) {
   for (int i = 0; i < 512; i++) {
     pte_t pte = pagetable[i];
-    if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+    if ((pte & PTE_V) == 0) {
+      continue;
+    }
+    if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
       uint64 child = PTE2PA(pte);
       freewalk_kernel_pagetable((pagetable_t)child);
       pagetable[i] = 0;

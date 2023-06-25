@@ -252,7 +252,7 @@ void proc_freekernelpagetable(struct proc *p, pagetable_t pagetable) {
   // Map it high in memory, followed by an invalid
   // guard page.
   uint64 va = KSTACK((int) (p - proc));
-  uvmunmap(pagetable, va, 1, 0);
+  uvmunmap(pagetable, va, 1, 1);
 
   // free kernel pagetable
   freewalk_kernel_pagetable(p->kernel_pagetable); 
