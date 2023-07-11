@@ -144,6 +144,7 @@ freeproc(struct proc *p)
   }
   
   p->pagetable = 0;
+  p->kernel_pagetable = 0; 
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -194,7 +195,8 @@ proc_kernel_pagetable(struct proc *p)
   pagetable_t pagetable;
 
   // An empty page table.
-  pagetable = uvmcreate();
+  pagetable = kalloc();
+  memset(pagetable, 0, PGSIZE);
   if(pagetable == 0) {
     return 0;
   }
@@ -209,7 +211,7 @@ proc_kernel_pagetable(struct proc *p)
   if (pa == 0) {
     panic("kalloc");
   }
-  uint64 va = KSTACK((int)(p - proc));
+  uint64 va = KSTACK((int)0);
   kvmmap(pagetable, va, (uint64)pa, PGSIZE, PTE_R | PTE_W); 
   p->kstack = va;
 
@@ -239,7 +241,7 @@ void proc_freekernelpagetable(struct proc *p, pagetable_t pagetable) {
   uvmunmap(pagetable, VIRTIO0, 1, 0);
 
   // CLINT
-  uvmunmap(pagetable, CLINT, 0x10000 / PGSIZE, 0);
+  // uvmunmap(pagetable, CLINT, 0x10000 / PGSIZE, 0);
 
   // PLIC
   uvmunmap(pagetable, PLIC, 0x400000 / PGSIZE, 0);
@@ -251,8 +253,11 @@ void proc_freekernelpagetable(struct proc *p, pagetable_t pagetable) {
   // Allocate a page for the process's kernel stack.
   // Map it high in memory, followed by an invalid
   // guard page.
-  uint64 va = KSTACK((int) (p - proc));
+  uint64 va = KSTACK(0);
   uvmunmap(pagetable, va, 1, 1);
+  // void *kstack_pa = (void *)kvmpa(p->kernel_pagetable, p->kstack);
+  // // printf("trace: free kstack %p\n", kstack_pa);
+  // kfree(kstack_pa);
 
   // free kernel pagetable
   freewalk_kernel_pagetable(p->kernel_pagetable); 
@@ -284,6 +289,8 @@ userinit(void)
   uvminit(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
 
+  copy_user_pagetable(p->pagetable, p->kernel_pagetable, 0, sizeof(initcode)); 
+
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
   p->trapframe->sp = PGSIZE;  // user stack pointer
@@ -309,8 +316,10 @@ growproc(int n)
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
+    copy_user_pagetable(p->pagetable, p->kernel_pagetable, p->sz, sz); 
   } else if(n < 0){
-    sz = uvmdealloc(p->pagetable, sz, sz + n);
+    uvmdealloc(p->pagetable, sz, sz + n);
+    sz = vmdealloc(p->kernel_pagetable, sz, sz + n, 0); 
   }
   p->sz = sz;
   return 0;
@@ -336,6 +345,9 @@ fork(void)
     release(&np->lock);
     return -1;
   }
+
+  copy_user_pagetable(np->pagetable, np->kernel_pagetable, 0, p->sz); 
+
   np->sz = p->sz;
 
   np->parent = p;

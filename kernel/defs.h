@@ -171,9 +171,11 @@ pagetable_t     uvmcreate(void);
 void            uvminit(pagetable_t, uchar *, uint);
 uint64          uvmalloc(pagetable_t, uint64, uint64);
 uint64          uvmdealloc(pagetable_t, uint64, uint64);
+uint64          vmdealloc(pagetable_t, uint64, uint64, int);
 void            vmprint(pagetable_t); 
 pagetable_t     get_kernel_pagetable(); 
 void            freewalk_kernel_pagetable(pagetable_t);
+void            copy_user_pagetable(pagetable_t, pagetable_t, uint64 start, uint64 end); 
 
 #ifdef SOL_COW
 #else
