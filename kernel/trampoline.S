@@ -65,6 +65,7 @@ uservec:
         sd t0, 112(a0)
 
         # restore kernel stack pointer from p->trapframe->kernel_sp
+        # 将栈指针加载
         ld sp, 8(a0)
 
         # make tp hold the current hartid, from p->trapframe->kernel_hartid
@@ -74,6 +75,7 @@ uservec:
         ld t0, 16(a0)
 
         # restore kernel page table from p->trapframe->kernel_satp
+        # 加载内核页表
         ld t1, 0(a0)
         csrw satp, t1
         sfence.vma zero, zero
